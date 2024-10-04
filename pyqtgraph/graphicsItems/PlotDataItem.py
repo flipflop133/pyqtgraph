@@ -1513,28 +1513,24 @@ class PlotDataItem(GraphicsObject):
             if view is None or view.autoRangeEnabled()[0]:
                 pass  # no ViewBox to clip to, or view will autoscale to data range.
             else:
-                # clip-to-view always presumes that x-values are in increasing order
-                if view_range is not None and len(x) > 1:
-                    # find first in-view value (left edge) and first out-of-view value
-                    # (right edge) since we want the curve to go to the edge of the
-                    # screen, we need to preserve one down-sampled point on the left and
-                    # one of the right, so we extend the interval
+                # clip-to-view always presumes that x and y values are in increasing order
+                if view_range is not None and len(x) > 1 and len(y) > 1:
+                    # Find the x-range of the view
+                    left = view_range.left()
+                    right = view_range.right()
+                    bottom = view_range.bottom()
+                    top = view_range.top()
+                   
+                    # Determine the masks
+                    mask_x = (x >= left) & (x <= right) 
+                    mask_y = (y >= top) & (y <= bottom)
 
-                    # np.searchsorted performs poorly when the array.dtype does not
-                    # match the type of the value (float) being searched.
-                    # see: https://github.com/pyqtgraph/pyqtgraph/pull/2719
-                    # x0 = np.searchsorted(x, view_range.left()) - ds
-                    x0 = bisect.bisect_left(x, view_range.left()) - ds
-                    # x0 = np.clip(x0, 0, len(x))
-                    x0 = fn.clip_scalar(x0, 0, len(x))  # workaround
+                    # Combine the masks for both x and y axes
+                    mask = mask_x & mask_y
 
-                    # x1 = np.searchsorted(x, view_range.right()) + ds
-                    x1 = bisect.bisect_left(x, view_range.right()) + ds
-                    # x1 = np.clip(x1, 0, len(x))
-                    x1 = fn.clip_scalar(x1, x0, len(x))
-                    x = x[x0:x1]
-                    y = y[x0:x1]
-
+                    # Apply the mask to x and y
+                    x = x[mask]
+                    y = y[mask]
         if ds > 1:
             if self.opts['downsampleMethod'] == 'subsample':
                 x = x[::ds]
